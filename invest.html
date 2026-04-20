@@ -1,0 +1,219 @@
+
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инвест-Баттл: Миллионға жол</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .news-card { animation: slideIn 0.5s ease-out; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="game-container" class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-slate-800 p-6 rounded-2xl border border-slate-700">
+            <div>
+                <h1 class="text-3xl font-extrabold text-blue-400">ИНВЕСТ-БАТТЛ</h1>
+                <p class="text-slate-400">9-11 сынып оқушыларына арналған нарық симуляторы</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-slate-400 uppercase tracking-wider">Сіздің капиталыңыз</div>
+                <div id="balance" class="text-4xl font-mono font-bold text-green-400">1 000 000 ₸</div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Market Section -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold">Нарықтағы бағалар</h2>
+                        <span id="turn-display" class="bg-blue-600 px-3 py-1 rounded-full text-sm">Күн: 1 / 10</span>
+                    </div>
+                    
+                    <div id="stocks-list" class="space-y-4">
+                        <!-- Stock items will be injected here -->
+                    </div>
+                </div>
+
+                <!-- News Section -->
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 min-h-[150px]">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <span>📢 Нарық жаңалықтары</span>
+                    </h2>
+                    <div id="news-container" class="text-slate-300 italic bg-slate-900/50 p-4 rounded-xl border-l-4 border-blue-500">
+                        Оқиғаларды көру үшін "Келесі күн" түймесін басыңыз...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Portfolio & Actions -->
+            <div class="space-y-6">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4">Сіздің қоржыныңыз</h2>
+                    <div id="portfolio-list" class="space-y-2 mb-6 text-sm">
+                        <p class="text-slate-500">Сізде әзірге акция жоқ</p>
+                    </div>
+                    <button onclick="nextTurn()" id="next-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20 active:scale-95">
+                        КЕЛЕСІ КҮН
+                    </button>
+                </div>
+
+                <div class="bg-amber-900/20 p-4 rounded-xl border border-amber-700/30 text-xs text-amber-200/70">
+                    💡 <b>Кеңес:</b> Жаңалықтарды мұқият оқып, бағаның өзгеруін бақылаңыз. Тәуекелдерді бөлу (диверсификация) — табыс кілті!
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Modal -->
+        <div id="modal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+            <div class="bg-slate-800 p-8 rounded-3xl border border-slate-700 max-w-md w-full text-center">
+                <h2 id="modal-title" class="text-3xl font-bold mb-4">Ойын аяқталды!</h2>
+                <p id="modal-text" class="text-slate-300 mb-8 text-lg"></p>
+                <button onclick="location.reload()" class="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-bold">
+                    ҚАЙТА ОЙНАУ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const companies = [
+            { id: 'tech', name: 'Almaty Tech', sector: 'IT', price: 15000, history: [15000], volatility: 0.15 },
+            { id: 'energy', name: 'KazOil & Gas', sector: 'Энергетика', price: 8500, history: [8500], volatility: 0.08 },
+            { id: 'food', name: 'Бауырсақ Плюс', sector: 'Азық-түлік', price: 3200, history: [3200], volatility: 0.05 },
+            { id: 'mining', name: 'Тау-кен Өндірісі', sector: 'Өндіріс', price: 25000, history: [25000], volatility: 0.20 }
+        ];
+
+        const newsPool = [
+            { text: "«Almaty Tech» халықаралық IT-хабпен келісімшартқа отырды. Акциялар өсуде!", target: 'tech', impact: 0.18 },
+            { text: "Әлемдік нарықта мұнай бағасы қымбаттады, «KazOil & Gas» пайдада.", target: 'energy', impact: 0.12 },
+            { text: "Өңірдегі құрғақшылық «Бауырсақ Плюс» өнімдерінің жеткізіліміне әсер етті.", target: 'food', impact: -0.15 },
+            { text: "Қарағандыда жаңа мыс кеніші табылды. «Тау-кен Өндірісі» акциялары күрт өсті!", target: 'mining', impact: 0.25 },
+            { text: "«Almaty Tech» серверлерінде ақау болып, клиенттердің деректері жоғалды.", target: 'tech', impact: -0.22 },
+            { text: "«KazOil & Gas» жаңа өңдеу зауытының құрылысын жариялады.", target: 'energy', impact: 0.07 },
+            { text: "«Бауырсақ Плюс» көршілес елдердің нарығына шыға бастады.", target: 'food', impact: 0.10 },
+            { text: "«Тау-кен Өндірісі» кеншілері ереуілге шықты.", target: 'mining', impact: -0.18 }
+        ];
+
+        let balance = 1000000;
+        let portfolio = {};
+        let currentTurn = 1;
+        const maxTurns = 10;
+
+        // Обновление интерфейса
+        function updateUI() {
+            document.getElementById('balance').innerText = balance.toLocaleString() + ' ₸';
+            document.getElementById('turn-display').innerText = `Күн: ${currentTurn} / ${maxTurns}`;
+            
+            const list = document.getElementById('stocks-list');
+            list.innerHTML = '';
+            
+            companies.forEach(company => {
+                const diff = company.history.length > 1 ? company.price - company.history[company.history.length - 2] : 0;
+                const diffPercent = company.history.length > 1 ? (diff / company.history[company.history.length - 2] * 100).toFixed(1) : 0;
+                const colorClass = diff >= 0 ? 'text-green-400' : 'text-red-400';
+
+                list.innerHTML += `
+                    <div class="flex items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                        <div class="flex-1">
+                            <div class="font-bold text-lg">${company.name} <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 ml-2 uppercase">${company.sector}</span></div>
+                            <div class="text-2xl font-mono">${company.price.toLocaleString()} ₸ 
+                                <span class="text-sm ${colorClass} ml-2 font-sans">${diff >= 0 ? '▲' : '▼'} ${diffPercent}%</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="buyStock('${company.id}')" class="bg-green-600/20 hover:bg-green-600 text-green-400 hover:text-white border border-green-600/40 px-3 py-2 rounded-lg transition-all font-bold text-xs">САТЫП АЛУ</button>
+                            <button onclick="sellStock('${company.id}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/40 px-3 py-2 rounded-lg transition-all font-bold text-xs">САТУ</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const pList = document.getElementById('portfolio-list');
+            const held = Object.entries(portfolio).filter(([_, qty]) => qty > 0);
+            if (held.length === 0) {
+                pList.innerHTML = '<p class="text-slate-500 italic text-center py-4">Қоржыныңыз бос</p>';
+            } else {
+                pList.innerHTML = held.map(([id, qty]) => {
+                    const comp = companies.find(c => c.id === id);
+                    return `<div class="flex justify-between border-b border-slate-700 pb-1 mb-1">
+                        <span class="text-slate-300">${comp.name}</span>
+                        <span class="font-bold text-blue-400">${qty} дана</span>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        window.buyStock = (id) => {
+            const comp = companies.find(c => c.id === id);
+            if (balance >= comp.price) {
+                balance -= comp.price;
+                portfolio[id] = (portfolio[id] || 0) + 1;
+                updateUI();
+            }
+        };
+
+        window.sellStock = (id) => {
+            if (portfolio[id] > 0) {
+                const comp = companies.find(c => c.id === id);
+                balance += comp.price;
+                portfolio[id]--;
+                updateUI();
+            }
+        };
+
+        window.nextTurn = () => {
+            if (currentTurn >= maxTurns) {
+                endGame();
+                return;
+            }
+            currentTurn++;
+            
+            const news = newsPool[Math.floor(Math.random() * newsPool.length)];
+            document.getElementById('news-container').innerText = news.text;
+
+            companies.forEach(comp => {
+                let change = (Math.random() * 0.12 - 0.06); 
+                if (news.target === comp.id) {
+                    change += news.impact;
+                }
+                comp.history.push(comp.price);
+                comp.price = Math.round(comp.price * (1 + change));
+                if (comp.price < 500) comp.price = 500;
+            });
+            updateUI();
+        };
+
+        function endGame() {
+            let totalValue = balance;
+            Object.entries(portfolio).forEach(([id, qty]) => {
+                const comp = companies.find(c => c.id === id);
+                totalValue += qty * comp.price;
+            });
+            const profit = totalValue - 1000000;
+            document.getElementById('modal').classList.remove('hidden');
+            const title = document.getElementById('modal-title');
+            const text = document.getElementById('modal-text');
+            
+            if (profit > 0) {
+                title.innerText = "🚀 Керемет нәтиже!";
+                title.className = "text-3xl font-bold mb-4 text-green-400";
+                text.innerText = `Сіздің соңғы капиталыңыз: ${totalValue.toLocaleString()} ₸. Пайдаңыз: ${profit.toLocaleString()} ₸. Нағыз инвесторсыз!`;
+            } else {
+                title.innerText = "📉 Нарық бүгін қатал";
+                title.className = "text-3xl font-bold mb-4 text-red-400";
+                text.innerText = `Сіздің соңғы капиталыңыз: ${totalValue.toLocaleString()} ₸. Шығын: ${Math.abs(profit).toLocaleString()} ₸. Тағы байқап көріңіз!`;
+            }
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>
